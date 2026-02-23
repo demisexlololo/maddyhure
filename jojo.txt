@@ -142,6 +142,9 @@ local function hasRerollStand()
 		if hotbar:FindFirstChild("King Crimson") then
 			return true
 		end
+		if hotbar:FindFirstChild("Pose") then
+			return true
+		end
 	end
 	return false
 end
@@ -303,6 +306,15 @@ local function runAttempt()
 	local targetPosition = position + Vector3.new(0, 3, 0)
 	hrp.CFrame = CFrame.new(targetPosition, position)
 
+	local cam = workspace.CurrentCamera
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if cam and humanoid then
+		cam.CameraType = Enum.CameraType.Custom
+		cam.CameraSubject = humanoid
+		local offset = Vector3.new(0, 25, 0)
+		cam.CFrame = CFrame.new(position + offset, position)
+	end
+
 	print("runAttempt: moved near", position)
 	task.wait(0.3)
 
@@ -343,7 +355,7 @@ local function runAttempt()
 
 	task.wait(0.6)
 
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	humanoid = character:FindFirstChildOfClass("Humanoid")
 	local toolInBackpack = findArrowTool(backpack, character)
 
 	if not toolInBackpack and arrow:IsA("Tool") then
