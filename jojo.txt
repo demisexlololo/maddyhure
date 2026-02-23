@@ -1,0 +1,416 @@
+local player = game.Players.LocalPlayer
+local teleportService = game:GetService("TeleportService")
+local httpService = game:GetService("HttpService")
+local virtualInput = game:GetService("VirtualInputManager")
+local userInputService = game:GetService("UserInputService")
+
+local function switchToGojo()
+	local args = {
+		"Gojo",
+		79534633251029,
+	}
+	local replicatedStorage = game:GetService("ReplicatedStorage")
+	local remotes = replicatedStorage:WaitForChild("Remotes")
+	local combat = remotes:WaitForChild("Combat")
+	local switchCharacter = combat:WaitForChild("SwitchCharacter")
+	switchCharacter:FireServer(unpack(args))
+end
+
+local function findStandArrow()
+	print("findStandArrow: searching")
+	local visuals = workspace:FindFirstChild("Visuals")
+	if visuals then
+		for _, v in ipairs(visuals:GetDescendants()) do
+			if v:IsA("Tool") and v.Name:lower():find("arrow") then
+				print("findStandArrow: found in Visuals", v:GetFullName())
+				return v
+			end
+		end
+	end
+
+	for _, v in ipairs(workspace:GetDescendants()) do
+		if v:IsA("Tool") and v.Name:lower():find("arrow") then
+			print("findStandArrow: found in workspace", v:GetFullName())
+			return v
+		end
+	end
+
+	print("findStandArrow: none found")
+	return nil
+end
+
+local function hopServer()
+	print("hopServer: fetching servers")
+	local ok, result = pcall(function()
+		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
+		local body = game:HttpGet(url)
+		return httpService:JSONDecode(body)
+	end)
+
+	if ok and result and result.data then
+		for _, server in ipairs(result.data) do
+			if server.id ~= game.JobId and server.playing < server.maxPlayers then
+				print("hopServer: teleporting to", server.id)
+				teleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
+				return
+			end
+		end
+	end
+
+	print("hopServer: fallback teleport to same place")
+	teleportService:Teleport(game.PlaceId, player)
+end
+
+local function hasYareYare()
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if not playerGui then
+		return false
+	end
+
+	local main = playerGui:FindFirstChild("Main")
+	if not main then
+		return false
+	end
+
+	local holder = main:FindFirstChild("Holder")
+	if not holder then
+		return false
+	end
+
+	local dummyHotbar = holder:FindFirstChild("DummyHotbar")
+	if not dummyHotbar then
+		return false
+	end
+
+	return dummyHotbar:FindFirstChild("Yare Yare Daze") ~= nil
+end
+
+local function hasStarPlatinum()
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if not playerGui then
+		return false
+	end
+
+	local main = playerGui:FindFirstChild("Main")
+	if not main then
+		return false
+	end
+
+	local holder = main:FindFirstChild("Holder")
+	if not holder then
+		return false
+	end
+
+	local dummyHotbar = holder:FindFirstChild("DummyHotbar")
+	if not dummyHotbar then
+		return false
+	end
+
+	return dummyHotbar:FindFirstChild("Star Platinum") ~= nil
+end
+
+local function hasRerollStand()
+	local playerGui = player:FindFirstChild("PlayerGui")
+	if not playerGui then
+		return false
+	end
+
+	local main = playerGui:FindFirstChild("Main")
+	if not main then
+		return false
+	end
+
+	local holder = main:FindFirstChild("Holder")
+	if not holder then
+		return false
+	end
+
+	local hotbar = holder:FindFirstChild("Hotbar")
+	if hotbar then
+		if hotbar:FindFirstChild("The Hand") then
+			return true
+		end
+		if hotbar:FindFirstChild("Go Beyond") then
+			return true
+		end
+		if hotbar:FindFirstChild("Echoes") then
+			return true
+		end
+		if hotbar:FindFirstChild("Killer Queen") then
+			return true
+		end
+		if hotbar:FindFirstChild("King Crimson") then
+			return true
+		end
+	end
+	return false
+end
+
+local ARROW_ANIMATION_ID = "98244034973994"
+
+local function clickCenter()
+	local cam = workspace.CurrentCamera
+	if not cam then
+		print("clickCenter: CurrentCamera missing")
+		return
+	end
+
+	local viewport = cam.ViewportSize
+	local x = viewport.X / 2
+	local y = viewport.Y / 2
+
+	print("clickCenter: clicking at center", x, y)
+
+	if userInputService then
+		local loc = userInputService:GetMouseLocation()
+		local dx = x - loc.X
+		local dy = y - loc.Y
+		if mousemoveabs then
+			mousemoveabs(x, y)
+		elseif mousemoverel then
+			mousemoverel(dx, dy)
+		elseif virtualInput then
+			virtualInput:SendMouseMove(x, y)
+		else
+			print("clickCenter: no mouse move api available")
+		end
+	else
+		if mousemoveabs then
+			mousemoveabs(x, y)
+		elseif virtualInput then
+			virtualInput:SendMouseMove(x, y)
+		else
+			print("clickCenter: cannot move mouse, missing services")
+		end
+	end
+
+	task.wait(0.05)
+
+	for i = 1, 10 do
+		if mouse1click then
+			mouse1click()
+		elseif virtualInput then
+			virtualInput:SendMouseButtonEvent(x, y, 0, true, game, 0)
+			task.wait(0.03)
+			virtualInput:SendMouseButtonEvent(x, y, 0, false, game, 0)
+		else
+			print("clickCenter: no mouse click api available")
+			break
+		end
+		task.wait(0.03)
+	end
+end
+
+local function findArrowTool(backpack, character)
+	if backpack then
+		local t = backpack:FindFirstChild("Stand Arrow")
+		if t and t:IsA("Tool") then
+			return t
+		end
+		for _, v in ipairs(backpack:GetChildren()) do
+			if v:IsA("Tool") and v.Name:lower():find("arrow") then
+				return v
+			end
+		end
+	end
+	if character then
+		for _, v in ipairs(character:GetChildren()) do
+			if v:IsA("Tool") and v.Name:lower():find("arrow") then
+				return v
+			end
+		end
+	end
+	return nil
+end
+
+local function isArrowUseAnimationPlaying(humanoid)
+	if not humanoid then
+		return false
+	end
+	local animator = humanoid:FindFirstChildOfClass("Animator")
+	if not animator then
+		return false
+	end
+	for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+		local anim = track.Animation
+		if anim and anim.AnimationId and string.find(anim.AnimationId, ARROW_ANIMATION_ID, 1, true) then
+			return true
+		end
+	end
+	return false
+end
+
+local function runAttempt()
+	print("runAttempt: begin")
+	local character = player.Character or player.CharacterAdded:Wait()
+	local backpack = player:WaitForChild("Backpack")
+
+	local arrow = findStandArrow()
+	if not arrow then
+		print("runAttempt: no arrow, hopping")
+		hopServer()
+		return
+	end
+
+	switchToGojo()
+	task.wait(3)
+
+	character = player.Character or player.CharacterAdded:Wait()
+	backpack = player:WaitForChild("Backpack")
+
+	local function getArrowPosition(obj)
+		if obj:IsA("Tool") then
+			local handle = obj:FindFirstChild("Handle")
+			if handle and handle:IsA("BasePart") then
+				return handle.Position
+			end
+			for _, v in ipairs(obj:GetDescendants()) do
+				if v:IsA("BasePart") then
+					return v.Position
+				end
+			end
+		end
+
+		if obj.Parent and obj.Parent:IsA("Model") and obj.Parent.PrimaryPart then
+			return obj.Parent.PrimaryPart.Position
+		end
+
+		if obj:IsA("BasePart") then
+			return obj.Position
+		end
+
+		for _, v in ipairs(obj:GetDescendants()) do
+			if v:IsA("BasePart") then
+				return v.Position
+			end
+		end
+
+		return nil
+	end
+
+	local position = getArrowPosition(arrow)
+	if not position then
+		print("runAttempt: arrow position nil")
+		return
+	end
+
+	local hrp = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart", 5)
+	if not hrp then
+		print("runAttempt: HumanoidRootPart missing")
+		return
+	end
+
+	local targetPosition = position + Vector3.new(0, 3, 0)
+	hrp.CFrame = CFrame.new(targetPosition, position)
+
+	print("runAttempt: moved near", position)
+	task.wait(0.3)
+
+	if fireproximityprompt then
+		local handle = arrow:IsA("Tool") and arrow:FindFirstChild("Handle")
+		if handle then
+			for _, v in ipairs(handle:GetDescendants()) do
+				if v:IsA("ProximityPrompt") then
+					local originalHold = v.HoldDuration
+					v.HoldDuration = 0
+					print("runAttempt: firing handle prompt")
+					fireproximityprompt(v)
+					task.wait(0.1)
+					v.HoldDuration = originalHold
+					break
+				end
+			end
+		end
+
+		for _, prompt in ipairs(workspace:GetDescendants()) do
+			if prompt:IsA("ProximityPrompt") then
+				local part = prompt.Parent
+				if part and part:IsA("BasePart") then
+					if (part.Position - hrp.Position).Magnitude <= 15 then
+						local originalHold = prompt.HoldDuration
+						prompt.HoldDuration = 0
+						print("runAttempt: firing nearby prompt")
+						fireproximityprompt(prompt)
+						task.wait(0.05)
+						prompt.HoldDuration = originalHold
+					end
+				end
+			end
+		end
+	else
+		print("runAttempt: fireproximityprompt missing")
+	end
+
+	task.wait(0.6)
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local toolInBackpack = findArrowTool(backpack, character)
+
+	if not toolInBackpack and arrow:IsA("Tool") then
+		arrow.Parent = backpack
+		toolInBackpack = findArrowTool(backpack, character)
+	end
+
+	if humanoid and toolInBackpack and toolInBackpack:IsA("Tool") then
+		print("runAttempt: equipping Stand Arrow")
+		humanoid:EquipTool(toolInBackpack)
+		if toolInBackpack.Activate then
+			print("runAttempt: activating Stand Arrow")
+			toolInBackpack:Activate()
+		end
+		task.wait(0.7)
+
+		print("runAttempt: clicking center")
+		clickCenter()
+	else
+		print("runAttempt: failed to equip Stand Arrow")
+	end
+
+	print("runAttempt: waiting after arrow use to check stand")
+	task.wait(6)
+	if hasRerollStand() then
+		print("runAttempt: bad stand detected after arrow use, switching character")
+		switchToGojo()
+		return
+	else
+		print("runAttempt: good stand or none detected after arrow use, no reset")
+	end
+end
+
+local farming = false
+local lastRerollTime = 0
+
+local function runFarm()
+	if farming then
+		return
+	end
+	farming = true
+	while true do
+		runAttempt()
+		if not hasRerollStand() then
+			print("main: obtained non-reroll stand, stopping farm")
+			break
+		end
+		task.wait(2)
+	end
+	farming = false
+end
+
+task.spawn(runFarm)
+
+task.spawn(function()
+	while true do
+		if hasRerollStand() then
+			if tick() - lastRerollTime > 5 then
+				lastRerollTime = tick()
+				print("monitor: reroll stand detected in hotbar, switching to Gojo and restarting farm")
+				switchToGojo()
+				task.wait(3)
+				farming = false
+				task.spawn(runFarm)
+			end
+		end
+		task.wait(1)
+	end
+end)
+
