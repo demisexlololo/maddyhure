@@ -42,18 +42,28 @@ end
 local function hopServer()
 	print("hopServer: fetching servers")
 	local ok, result = pcall(function()
-		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
+		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100"):format(game.PlaceId)
 		local body = game:HttpGet(url)
 		return httpService:JSONDecode(body)
 	end)
 
 	if ok and result and result.data then
+		local candidate
 		for _, server in ipairs(result.data) do
 			if server.id ~= game.JobId and server.playing < server.maxPlayers then
-				print("hopServer: teleporting to", server.id)
-				teleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
-				return
+				if server.playing >= (server.maxPlayers * 0.5) then
+					candidate = server
+					break
+				end
+				if not candidate or server.playing > candidate.playing then
+					candidate = server
+				end
 			end
+		end
+		if candidate then
+			print("hopServer: teleporting to", candidate.id, "players:", candidate.playing, "/", candidate.maxPlayers)
+			teleportService:TeleportToPlaceInstance(game.PlaceId, candidate.id, player)
+			return
 		end
 	end
 
