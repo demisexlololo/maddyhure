@@ -40,33 +40,44 @@ local function findStandArrow()
 end
 
 local function hopServer()
-	print("hopServer: fetching servers")
-	local ok, result = pcall(function()
-		local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
-		local body = game:HttpGet(url)
-		return httpService:JSONDecode(body)
-	end)
+	for attempt = 1, 5 do
+		print("hopServer: fetching servers, attempt", attempt)
+		local ok, result = pcall(function()
+			local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
+			local body = game:HttpGet(url)
+			return httpService:JSONDecode(body)
+		end)
 
-	if ok and result and result.data then
-		local candidate
-		local bestDiff = math.huge
-		local targetRatio = 0.6
-		for _, server in ipairs(result.data) do
-			if server.id ~= game.JobId and server.playing > 0 and server.playing < server.maxPlayers then
-				local ratio = server.playing / server.maxPlayers
-				-- pick server whose occupancy is closest to ~60%
-				local diff = math.abs(ratio - targetRatio)
-				if diff < bestDiff then
-					bestDiff = diff
-					candidate = server
+		if ok and result and result.data then
+			local candidate
+			local bestDiff = math.huge
+			local targetRatio = 0.6
+			for _, server in ipairs(result.data) do
+				if server.id ~= game.JobId and server.playing > 0 and server.playing < server.maxPlayers then
+					local ratio = server.playing / server.maxPlayers
+					local diff = math.abs(ratio - targetRatio)
+					if diff < bestDiff then
+						bestDiff = diff
+						candidate = server
+					end
 				end
 			end
+			if candidate then
+				print("hopServer: teleporting to", candidate.id, "players:", candidate.playing, "/", candidate.maxPlayers)
+				local success, err = pcall(function()
+					teleportService:TeleportToPlaceInstance(game.PlaceId, candidate.id, player)
+				end)
+				if success then
+					return
+				else
+					print("hopServer: teleport failed, retrying:", err)
+				end
+			end
+		else
+			print("hopServer: failed to fetch servers")
 		end
-		if candidate then
-			print("hopServer: teleporting to", candidate.id, "players:", candidate.playing, "/", candidate.maxPlayers)
-			teleportService:TeleportToPlaceInstance(game.PlaceId, candidate.id, player)
-			return
-		end
+
+		task.wait(2)
 	end
 
 	print("hopServer: fallback teleport to same place")
